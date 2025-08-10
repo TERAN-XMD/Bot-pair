@@ -1,8 +1,8 @@
-const { makeid } = require('./gen-id');
 const express = require('express');
 const fs = require('fs');
-let router = express.Router();
-const pino = require("pino");
+const pino = require('pino');
+const { makeid } = require('./gen-id');
+const { upload } = require('./mega');
 const {
     default: makeWASocket,
     useMultiFileAuthState,
@@ -11,132 +11,105 @@ const {
     makeCacheableSignalKeyStore
 } = require('@whiskeysockets/baileys');
 
-const { upload } = require('./mega');
+let router = express.Router();
 
 function removeFile(FilePath) {
-    if (!fs.existsSync(FilePath)) return false;
-    fs.rmSync(FilePath, { recursive: true, force: true });
+    if (fs.existsSync(FilePath)) {
+        fs.rmSync(FilePath, { recursive: true, force: true });
+    }
 }
 
 router.get('/', async (req, res) => {
     const id = makeid();
-    let num = req.query.number; // optional now
+    let num = req.query.number;
 
-    async function MALVIN_XD_PAIR_CODE() {
+    if (!num) {
+        return res.status(400).send({ error: 'Number is required as ?number=XXXXXXXXXX' });
+    }
+
+    async function startPairing() {
         const { state, saveCreds } = await useMultiFileAuthState('./temp/' + id);
 
-        try {
-            let sock = makeWASocket({
-                auth: {
-                    creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(
-                        state.keys,
-                        pino({ level: "fatal" }).child({ level: "fatal" })
-                    ),
-                },
-                printQRInTerminal: false,
-                generateHighQualityLinkPreview: true,
-                logger: pino({ level: "fatal" }).child({ level: "fatal" }),
-                syncFullHistory: false,
-                browser: Browsers.macOS("Safari")
-            });
+        let sock = makeWASocket({
+            auth: {
+                creds: state.creds,
+                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" }))
+            },
+            printQRInTerminal: false,
+            generateHighQualityLinkPreview: true,
+            logger: pino({ level: "silent" }),
+            syncFullHistory: false,
+            browser: Browsers.macOS('Safari')
+        });
 
-            // pairing code request
-            if (!sock.authState.creds.registered) {
-                await delay(1500);
-                if (num) num = num.replace(/[^0-9]/g, '');
-                const code = await sock.requestPairingCode(num || "");
-                if (!res.headersSent) {
-                    return res.send({ code });
-                }
+        sock.ev.on('creds.update', saveCreds);
+
+        // Step 1: Get pairing code
+        if (!sock.authState.creds.registered) {
+            await delay(1500);
+            num = num.replace(/[^0-9]/g, '');
+            const code = await sock.requestPairingCode(num);
+            if (!res.headersSent) {
+                res.send({ code });
             }
+        }
 
-            sock.ev.on('creds.update', saveCreds);
+        // Step 2: Wait for "open" event
+        sock.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect } = update;
 
-            sock.ev.on("connection.update", async (s) => {
-                const { connection, lastDisconnect } = s;
+            if (connection === 'open') {
+                console.log(`✅ Connected as ${sock.user.id}`);
 
-                if (connection == "open") {
-                    await delay(5000);
+                await delay(3000); // Wait for file to be fully written
 
-                    const rf = __dirname + `/temp/${id}/creds.json`;
-                    console.log("RF path:", rf, "Exists:", fs.existsSync(rf));
+                let credsFile = `./temp/${id}/creds.json`;
 
-                    function generateRandomText() {
-                        const prefix = "3EB";
-                        const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-                        let randomText = prefix;
-                        for (let i = prefix.length; i < 22; i++) {
-                            const randomIndex = Math.floor(Math.random() * characters.length);
-                            randomText += characters.charAt(randomIndex);
-                        }
-                        return randomText;
+                function generateRandomText() {
+                    const prefix = "3EB";
+                    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                    let randomText = prefix;
+                    for (let i = prefix.length; i < 22; i++) {
+                        const randomIndex = Math.floor(Math.random() * characters.length);
+                        randomText += characters.charAt(randomIndex);
                     }
+                    return randomText;
+                }
 
-                    try {
-                        const mega_url = await upload(fs.createReadStream(rf), `${sock.user.id}.json`);
-                        console.log("Mega URL:", mega_url);
+                try {
+                    const mega_url = await upload(fs.createReadStream(credsFile), `${sock.user.id}.json`);
+                    const string_session = mega_url.replace('https://mega.nz/file/', '');
+                    const sid = "malvin~" + string_session;
 
-                        const string_session = mega_url.replace('https://mega.nz/file/', '');
-                        const sid = "malvin~" + string_session;
-
-                        // Always send to the account that paired
-                        const chatId = sock.user.id;
-                        console.log("Sending Session ID to:", chatId);
-
-                        const msg = `
-🟦╔════════════════════════════╗🟦
-🟦║  🟥████████╗🟩███████╗🟨██████╗  ║🟦
-🟦║  🟥╚══██╔══╝🟩██╔════╝🟨██╔══██╗ ║🟦
-🟦║     🟥██║   🟩█████╗  🟨██████╔╝ ║🟦
-🟦║     🟥██║   🟩██╔══╝  🟨██╔═══╝  ║🟦
-🟦║     🟥██║   🟩███████╗🟨██║      ║🟦
-🟦║     🟥╚═╝   🟩╚══════╝🟨╚═╝      ║🟦
-🟦║       TERAN  •  XMD        ║🟦
-🟦╚════════════════════════════╝🟦
-
+                    await sock.sendMessage(num + "@s.whatsapp.net", {
+                        text: `
 ✅ *Session ID Generated!*
 ────────────────────────────
 ${sid}
 ────────────────────────────
 Use this Session ID to deploy your bot.
 Version: 5.0.0
-`;
+`
+                    });
 
-                        await sock.sendMessage(chatId, { text: msg });
-
-                    } catch (e) {
-                        console.error("Upload error:", e);
-                        await sock.sendMessage(sock.user.id, { text: "❌ Error generating session: " + e });
-                    }
-
-                    await delay(10);
-                    await sock.ws.close();
-                    removeFile('./temp/' + id);
-                    console.log(`👤 ${sock.user.id} Connected ✅ Restarting process...`);
-                    process.exit();
-                } 
-                else if (
-                    connection === "close" &&
-                    lastDisconnect &&
-                    lastDisconnect.error &&
-                    lastDisconnect.error.output.statusCode != 401
-                ) {
-                    await delay(10);
-                    MALVIN_XD_PAIR_CODE();
+                } catch (e) {
+                    await sock.sendMessage(num + "@s.whatsapp.net", { text: "❌ Error generating session: " + e });
                 }
-            });
 
-        } catch (err) {
-            console.error("Service restarted due to error:", err);
-            removeFile('./temp/' + id);
-            if (!res.headersSent) {
-                res.send({ code: "❗ Service Unavailable" });
+                await delay(2000);
+                await sock.ws.close();
+                removeFile('./temp/' + id);
+                console.log("🔄 Pairing process complete.");
             }
-        }
+
+            if (connection === 'close' && lastDisconnect?.error?.output?.statusCode !== 401) {
+                console.log("⚠️ Connection closed, retrying...");
+                startPairing();
+            }
+        });
     }
 
-    return await MALVIN_XD_PAIR_CODE();
+    startPairing();
 });
 
 module.exports = router;
