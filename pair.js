@@ -20,37 +20,34 @@ function removeFile(FilePath) {
 
 router.get('/', async (req, res) => {
     const id = makeid();
-    let num = req.query.number;
+    let num = req.query.number; // optional now
 
     async function MALVIN_XD_PAIR_CODE() {
         const { state, saveCreds } = await useMultiFileAuthState('./temp/' + id);
 
         try {
-            var items = ["Safari"];
-            function selectRandomItem(array) {
-                var randomIndex = Math.floor(Math.random() * array.length);
-                return array[randomIndex];
-            }
-            var randomItem = selectRandomItem(items);
-
             let sock = makeWASocket({
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
+                    keys: makeCacheableSignalKeyStore(
+                        state.keys,
+                        pino({ level: "fatal" }).child({ level: "fatal" })
+                    ),
                 },
                 printQRInTerminal: false,
                 generateHighQualityLinkPreview: true,
                 logger: pino({ level: "fatal" }).child({ level: "fatal" }),
                 syncFullHistory: false,
-                browser: Browsers.macOS(randomItem)
+                browser: Browsers.macOS("Safari")
             });
 
+            // pairing code request
             if (!sock.authState.creds.registered) {
                 await delay(1500);
-                num = num.replace(/[^0-9]/g, '');
-                const code = await sock.requestPairingCode(num);
+                if (num) num = num.replace(/[^0-9]/g, '');
+                const code = await sock.requestPairingCode(num || "");
                 if (!res.headersSent) {
-                    await res.send({ code });
+                    return res.send({ code });
                 }
             }
 
@@ -61,7 +58,9 @@ router.get('/', async (req, res) => {
 
                 if (connection == "open") {
                     await delay(5000);
-                    let rf = __dirname + `/temp/${id}/creds.json`;
+
+                    const rf = __dirname + `/temp/${id}/creds.json`;
+                    console.log("RF path:", rf, "Exists:", fs.existsSync(rf));
 
                     function generateRandomText() {
                         const prefix = "3EB";
@@ -74,16 +73,18 @@ router.get('/', async (req, res) => {
                         return randomText;
                     }
 
-                    const randomText = generateRandomText();
-
                     try {
                         const mega_url = await upload(fs.createReadStream(rf), `${sock.user.id}.json`);
+                        console.log("Mega URL:", mega_url);
+
                         const string_session = mega_url.replace('https://mega.nz/file/', '');
-                        let sid = "malvin~" + string_session;
+                        const sid = "malvin~" + string_session;
 
-                        let chatId = num + "@s.whatsapp.net";
+                        // Always send to the account that paired
+                        const chatId = sock.user.id;
+                        console.log("Sending Session ID to:", chatId);
 
-                        let msg = `
+                        const msg = `
 🟦╔════════════════════════════╗🟦
 🟦║  🟥████████╗🟩███████╗🟨██████╗  ║🟦
 🟦║  🟥╚══██╔══╝🟩██╔════╝🟨██╔══██╗ ║🟦
@@ -105,27 +106,32 @@ Version: 5.0.0
                         await sock.sendMessage(chatId, { text: msg });
 
                     } catch (e) {
-                        let chatId = num + "@s.whatsapp.net";
-                        await sock.sendMessage(chatId, { text: "❌ Error generating session: " + e });
+                        console.error("Upload error:", e);
+                        await sock.sendMessage(sock.user.id, { text: "❌ Error generating session: " + e });
                     }
 
                     await delay(10);
                     await sock.ws.close();
-                    await removeFile('./temp/' + id);
+                    removeFile('./temp/' + id);
                     console.log(`👤 ${sock.user.id} Connected ✅ Restarting process...`);
-                    await delay(10);
                     process.exit();
-                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
+                } 
+                else if (
+                    connection === "close" &&
+                    lastDisconnect &&
+                    lastDisconnect.error &&
+                    lastDisconnect.error.output.statusCode != 401
+                ) {
                     await delay(10);
                     MALVIN_XD_PAIR_CODE();
                 }
             });
 
         } catch (err) {
-            console.log("Service restarted due to error.");
-            await removeFile('./temp/' + id);
+            console.error("Service restarted due to error:", err);
+            removeFile('./temp/' + id);
             if (!res.headersSent) {
-                await res.send({ code: "❗ Service Unavailable" });
+                res.send({ code: "❗ Service Unavailable" });
             }
         }
     }
