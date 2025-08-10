@@ -1,543 +1,191 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>TERAN-XMD — Session Dashboard</title>
-
-  <!-- Tailwind Play CDN (fast way to start using Tailwind utilities) -->
-  <script>
-    // small Tailwind config so we can reference custom colors as utilities later in Parts 2/3
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'tx-accent': '#00f0ff',
-            'tx-accent-2': '#9b5cff',
-            'tx-bg': '#050507',
-          },
-          boxShadow: {
-            'tx-glow': '0 8px 40px rgba(0,240,255,0.08)',
-          },
-          borderRadius: {
-            'tx': '14px'
-          }
-        }
-      }
-    }
-  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TERAN-XMD Session</title>
+  <link rel="icon" href="https://files.catbox.moe/39z8jd.jpg" type="image/x-icon">
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- keep your existing CSS intact for now — we won't remove it in Part 1 -->
   <style>
-    /* (original CSS preserved) */
-    :root{
-      --bg:#050507;
-      --card: rgba(255,255,255,0.03);
-      --glass: rgba(255,255,255,0.04);
-      --accent:#00f0ff;
-      --accent-2:#9b5cff;
-      --glow: 0 8px 40px rgba(0,240,255,0.08);
-      --radius:14px;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
-      --ui: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    /* Fire background video */
+    #fire-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: -2;
+      filter: brightness(0.6) contrast(1.2) saturate(1.4);
     }
-    html,body{height:100%;margin:0;background:var(--bg);font-family:var(--ui);color:#e6eef6;overflow:hidden}
-    .app {
-      position:relative;
-      z-index:10;
-      display:grid;
-      grid-template-columns: 360px 1fr;
-      gap:28px;
-      height:100vh;
-      padding:38px;
-      box-sizing:border-box;
-      align-items:center;
+    /* Dark overlay for readability */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: -1;
     }
 
-    /* --------- Left control column --------- */
-    .left {
-      width: 360px;
+    /* Floating particles */
+    .particle {
+      position: absolute;
+      background: rgba(34,211,238,0.6);
+      border-radius: 50%;
+      animation: float 20s linear infinite;
     }
-    .card {
-      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-      border-radius: var(--radius);
-      padding:18px;
-      box-shadow: var(--glow);
-      backdrop-filter: blur(8px) saturate(120%);
-      border: 1px solid rgba(255,255,255,0.03);
-      margin-bottom:18px;
+    @keyframes float {
+      from { transform: translateY(100vh) scale(0.5); opacity: 1; }
+      to { transform: translateY(-10vh) scale(1); opacity: 0; }
     }
 
-    .brand {
-      display:flex;gap:12px;align-items:center;
+    /* Typing effect */
+    .typing {
+      border-right: .15em solid #22d3ee;
+      white-space: nowrap;
+      overflow: hidden;
+      animation: typing 3.5s steps(20, end) infinite alternate, blink .75s step-end infinite;
     }
-    .logo {
-      width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
-      display:flex;align-items:center;justify-content:center;font-weight:900;color:#051018;
-      box-shadow:0 6px 18px rgba(0,240,255,0.12);
+    @keyframes typing {
+      from { width: 0 }
+      to { width: 100% }
     }
-    .brand h1{font-size:16px;margin:0}
-    .brand p{margin:0;font-size:12px;color:#9fb6c5}
-
-    .status {
-      margin-top:12px;
-      display:flex;align-items:center;gap:10px;
-    }
-    .pill {
-      padding:6px 10px;border-radius:999px;font-weight:700;font-size:12px;background:linear-gradient(90deg, rgba(0,240,255,0.12), rgba(155,92,255,0.06));
-      color:var(--accent); display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(0,240,255,0.07);
+    @keyframes blink {
+      from, to { border-color: transparent }
+      50% { border-color: #22d3ee }
     }
 
-    .controls {display:flex;flex-direction:column;gap:12px;margin-top:16px}
-    .btn {
-      display:inline-flex;align-items:center;gap:10px;justify-content:center;padding:10px 12px;border-radius:10px;text-decoration:none;color:white;font-weight:800;
-      background:linear-gradient(180deg,#0b0b0b,#141414);border:1px solid rgba(255,255,255,0.03);cursor:pointer;
-      box-shadow: 0 6px 24px rgba(0,0,0,0.6);
-    }
-    .btn.ghost {background:transparent;border:1px dashed rgba(255,255,255,0.04);}
-    .btn.neon { box-shadow:0 8px 28px rgba(0,240,255,0.08), 0 0 20px rgba(0,240,255,0.06); border:1px solid rgba(0,240,255,0.14) }
-
-    input[type="text"]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-weight:600}
-
-    /* --------- Right panel (main) --------- */
-    .right { padding:18px; height:calc(100vh - 76px); display:flex;flex-direction:column;gap:16px; justify-content:center }
-    .qr-box { display:flex; gap:18px; align-items:center; }
-    .qr-placeholder {
-      width:360px;height:360px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-      display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.03);
-      position:relative; overflow:hidden;
-    }
-    .qr-placeholder img{max-width:84%;max-height:84%;filter:drop-shadow(0 10px 30px rgba(0,240,255,0.06));}
-
-    .session {
-      flex:1; display:flex;flex-direction:column; gap:12px;justify-content:center;
-    }
-    .session pre{
-      background:rgba(0,0,0,0.25); padding:14px;border-radius:10px;font-family:var(--mono);font-size:13px; color:#aeeffd; overflow:auto;
-      border:1px solid rgba(0,240,255,0.06);
-    }
-    .action-row{display:flex;gap:10px;flex-wrap:wrap}
-
-    /* typing header */
-    .hero { text-align:center;margin-bottom:8px }
-    .typing { font-family:var(--mono); font-size:28px; letter-spacing:2px; font-weight:800; color:var(--accent); text-shadow:0 6px 30px rgba(0,240,255,0.08) }
-
-    /* footer */
-    footer { position:fixed;left:0;right:0;bottom:8px;text-align:center;color:#8faab8;font-size:13px }
-
-    /* small helpers */
-    .tiny { font-size:12px; color:#8ea9b4 }
-    .muted { color:#7f98a0 }
-
-    /* responsive */
-    @media(max-width:980px){
-      .app{grid-template-columns:1fr;padding:20px;align-items:start;overflow:auto}
-      .left{width:100%}
-      .qr-placeholder{width:280px;height:280px}
+    /* Heartbeat for buttons */
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
     }
 
-    /* reduce motion (prefers-reduced-motion) */
-    @media (prefers-reduced-motion: reduce) {
-      * { animation: none !important; transition: none !important; }
+    /* Neon glowing buttons */
+    .glow-button {
+      position: relative;
+      background: linear-gradient(90deg, #22d3ee, #0ea5e9);
+      color: white;
+      font-weight: bold;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      z-index: 0;
+      animation: heartbeat 2s infinite;
+      transition: transform 0.3s ease;
+    }
+    .glow-button:hover {
+      transform: scale(1.1);
+    }
+    .glow-button::before {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      border-radius: 0.5rem;
+      padding: 2px;
+      background: linear-gradient(270deg, #22d3ee, #0ea5e9, #22d3ee);
+      background-size: 400% 400%;
+      animation: neonBorder 6s linear infinite;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      z-index: -1;
+    }
+    @keyframes neonBorder {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
     }
 
-    /* ===== Modal styles (audio permission) ===== */
-    .tx-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display:flex;align-items:center;justify-content:center; z-index:99999; }
-    .tx-modal { width: 420px; max-width: calc(100% - 32px); padding:18px; border-radius:12px; background: linear-gradient(180deg, rgba(10,10,10,0.96), rgba(6,6,6,0.94)); border:1px solid rgba(255,255,255,0.04); box-shadow: 0 20px 80px rgba(0,0,0,0.7); }
-    .tx-modal h3 { margin:0 0 8px 0; font-size:18px; color: var(--accent); }
-    .tx-modal p { margin:0 0 14px 0; color:#b9dfe6; font-size:13px; }
-    .tx-modal .row { display:flex; gap:10px; justify-content:flex-end; margin-top:10px; }
-    .tx-modal .btn { padding:10px 14px; border-radius:8px; }
+    /* Entrance animations */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up {
+      opacity: 0;
+      animation: fadeUp 1s ease forwards;
+    }
   </style>
 </head>
-<body class="antialiased tx-bg">
+<body class="flex flex-col items-center justify-center min-h-screen text-center px-4">
 
-  <!-- animated particle background canvas (your existing bg) -->
-  <canvas id="bg"></canvas>
+  <!-- Fire Background Video -->
+  <video autoplay muted loop playsinline id="fire-bg">
+    <source src="https://cdn.pixabay.com/video/2019/08/22/26951-356836464_large.mp4" type="video/mp4">
+  </video>
 
-  <div class="app" role="application" aria-label="TERAN-XMD Session Dashboard">
-    <div class="left">
-      <div class="card brand">
-        <div class="logo">TX</div>
-        <div>
-          <h1>TERAN-XMD</h1>
-          <p class="tiny">Session manager • Secure sharing</p>
-        </div>
-      </div>
+  <!-- Floating particles -->
+  <div id="particles"></div>
+  <!-- Logo -->
+  <img src="https://files.catbox.moe/39z8jd.jpg" 
+       alt="TERAN-XMD Logo" 
+       class="w-24 h-24 rounded-full border-4 border-cyan-400 shadow-lg mb-6 relative z-10 fade-up"
+       style="animation-delay: 0.2s;">
 
-      <div class="card">
-        <div class="status">
-          <div class="pill" id="statusPill">⏳ Waiting</div>
-          <div style="margin-left:auto;display:flex;gap:8px">
-            <button class="btn ghost" id="toggleMotion">Reduce Motion</button>
-            <button class="btn ghost" id="muteBtn">🔈 Mute</button>
-          </div>
-        </div>
+  <!-- Typing Text -->
+  <h1 class="typing text-3xl sm:text-4xl font-bold mb-4 text-cyan-300 relative z-10 fade-up"
+      style="animation-delay: 0.6s;">TERAN-XMD</h1>
+  <p class="text-sm sm:text-base text-gray-300 mb-8 relative z-10 fade-up"
+      style="animation-delay: 1s;">Your secure WhatsApp Session Manager</p>
 
-        <div style="margin-top:12px">
-          <label class="tiny">Send session to (phone, no +):</label>
-          <input id="phoneInput" type="text" value="254717028877" />
-        </div>
-
-        <div class="controls" style="margin-top:12px">
-          <a href="/qr" class="btn neon" target="_blank">QR-CODE</a>
-          <a href="/pair" class="btn" target="_blank">PAIRING-CODE</a>
-          <button class="btn" id="generateBtn">GENERATE SESSION</button>
-          <a class="btn ghost" href="https://github.com/XdKing2/MALVIN-XD/fork" target="_blank">FORK</a>
-          <a class="btn" href="https://wa.me/254717028877" target="_blank">WHATSAPP</a>
-          <a class="btn ghost" href="https://wa.me/254717028877" target="_blank">ERROR</a>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="tiny">Live actions</div>
-        <div class="action-row" style="margin-top:10px">
-          <button class="btn" id="copySid">Copy SID</button>
-          <button class="btn" id="downloadCreds">Download creds.json</button>
-          <button class="btn ghost" id="revokeBtn">Invalidate</button>
-        </div>
-        <p class="muted tiny" style="margin-top:10px">Security: anyone with session can control the bot. Keep it private.</p>
-      </div>
-    </div>
-
-    <div class="right">
-      <div class="hero">
-        <div class="typing" id="typingLine"></div>
-        <div class="tiny muted" id="typingSub"></div>
-      </div>
-
-      <div class="qr-box">
-        <div class="qr-placeholder card" id="qrBox">
-          <!-- QR image will be injected here (server will provide /qr byte image) -->
-          <div id="qrHint" class="tiny">QR will appear here after visiting <code>/qr</code></div>
-        </div>
-
-        <div class="session">
-          <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div>
-                <div class="tiny">Session ID</div>
-                <div style="font-family:var(--mono);font-weight:800;color:#aeeffd" id="sidBox">— no session yet —</div>
-              </div>
-              <div class="tiny muted">v5.0.0</div>
-            </div>
-            <pre id="sessionPre">No credentials yet. Generate or scan QR to create a session.</pre>
-            <div style="margin-top:10px;display:flex;gap:10px">
-              <button class="btn neon" id="sendWhats">Send to Number</button>
-              <button class="btn" id="showLogs">Show Logs</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <footer>TERAN-XMD © <span id="year"></span> • <span class="tiny">+254717028877</span></footer>
-
-  <!-- background audio element (replace src with your file or hosted URL) -->
-  <audio id="bgAudio" src="/audio/ambient.mp3" loop preload="auto"></audio>
-
-  <!-- Audio permission modal (hidden by default) -->
-  <div id="audioModal" class="tx-modal-backdrop" style="display:none" role="dialog" aria-modal="true" aria-labelledby="audioModalTitle">
-    <div class="tx-modal" role="document">
-      <h3 id="audioModalTitle">Play background audio?</h3>
-      <p>Autoplay with sound was blocked. Do you want to play the ambient audio (recommended) or keep it off?</p>
-      <div class="row">
-        <button id="modalPlay" class="btn neon">Play audio</button>
-        <button id="modalOff" class="btn ghost">Turn off</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
-
-    /* typing animation for header */
-    const typingEl = document.getElementById('typingLine');
-    const typingSub = document.getElementById('typingSub');
-    const lines = ['TERAN-XMD'];
-    const sub = ['+254717028877'];
-    let i=0, j=0, k=0;
-    function typeLoop(){
-      const txt = lines[i];
-      if (j < txt.length) {
-        typingEl.textContent += txt.charAt(j++);
-        setTimeout(typeLoop, 120);
-      } else {
-        // type sub (number)
-        if (k < sub[0].length) {
-          typingSub.textContent += sub[0].charAt(k++);
-          setTimeout(typeLoop, 100);
-        }
-      }
-    }
-    typeLoop();
-
-    /* ---------- Audio autoplay attempt + modal fallback ---------- */
-    const bgAudio = document.getElementById('bgAudio');
-    const muteBtn = document.getElementById('muteBtn');
-    const audioModal = document.getElementById('audioModal');
-    const modalPlay = document.getElementById('modalPlay');
-    const modalOff = document.getElementById('modalOff');
-
-    // Preference key to remember user's choice
-    const PREF_KEY = 'teran_audio_pref'; // values: 'auto','off','ask'
-
-    // Try to autoplay audio. If blocked, show modal (unless user previously chose 'off').
-    async function initAudio() {
-      const pref = localStorage.getItem(PREF_KEY) || 'ask';
-      if (pref === 'off') {
-        // user disabled audio permanently
-        muteBtn.textContent = '🔈 Mute';
-        return;
-      }
-      try {
-        await bgAudio.play();
-        muteBtn.textContent = '🔊 Unmute';
-        localStorage.setItem(PREF_KEY, 'auto');
-      } catch (err) {
-        // autoplay blocked
-        if (pref === 'ask') {
-          showAudioModal();
-        } else {
-          // if pref is 'auto' but blocked (rare), show modal
-          showAudioModal();
-        }
-      }
-    }
-
-    function showAudioModal() {
-      audioModal.style.display = 'flex';
-      // focus first actionable button for accessibility
-      modalPlay.focus();
-    }
-
-    modalPlay.addEventListener('click', async () => {
-      try {
-        await bgAudio.play();
-        localStorage.setItem(PREF_KEY, 'auto');
-        audioModal.style.display = 'none';
-        muteBtn.textContent = '🔊 Unmute';
-      } catch (e) {
-        // still blocked (rare): notify and keep modal open
-        alert('Play was blocked — try interacting with the page first.');
-      }
-    });
-
-    modalOff.addEventListener('click', () => {
-      bgAudio.pause();
-      localStorage.setItem(PREF_KEY, 'off');
-      audioModal.style.display = 'none';
-      muteBtn.textContent = '🔈 Mute';
-    });
-
-    // Mute button toggles audio, if user had set 'off' we keep it
-    muteBtn.addEventListener('click', async () => {
-      if (bgAudio.paused) {
-        try {
-          await bgAudio.play();
-          localStorage.setItem(PREF_KEY, 'auto');
-          muteBtn.textContent = '🔊 Unmute';
-        } catch {
-          showAudioModal();
-        }
-      } else {
-        bgAudio.pause();
-        localStorage.setItem(PREF_KEY, 'off');
-        muteBtn.textContent = '🔈 Mute';
-      }
-    });
-
-    // Try autoplay once on load (user interaction may be required)
-    window.addEventListener('load', initAudio);
-
-    // If user interacts anywhere, attempt again (helps mobile)
-    ['click','touchstart','keydown'].forEach(ev => {
-      window.addEventListener(ev, () => {
-        if (bgAudio.paused && localStorage.getItem(PREF_KEY) !== 'off') {
-          bgAudio.play().then(()=>{ muteBtn.textContent = '🔊 Unmute'; }).catch(()=>{/*ignored*/});
-        }
-      }, { once:true });
-    });
-
-    /* ---------- Canvas particles (your original script) ---------- */
-    const canvas = document.getElementById('bg'), ctx = canvas.getContext('2d');
-    let DPR = window.devicePixelRatio || 1;
-    function onResize(){ canvas.width = innerWidth * DPR; canvas.height = innerHeight * DPR; canvas.style.width = innerWidth + 'px'; canvas.style.height = innerHeight + 'px'; }
-    onResize(); window.addEventListener('resize', onResize);
-    const particles = [];
-    const N = Math.round(Math.min(140, Math.max(40, (innerWidth * innerHeight) / 12000)));
-    for(let i=0;i<N;i++){
-      particles.push({
-        x: Math.random()*innerWidth,
-        y: Math.random()*innerHeight,
-        r: 0.8 + Math.random()*3.2,
-        vx: (Math.random()-0.5) * 0.4,
-        vy: (Math.random()-0.5) * 0.4,
-        hue: 180 + Math.random()*120
-      });
-    }
-    function loop(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      particles.forEach(p=>{
-        p.x += p.vx * DPR;
-        p.y += p.vy * DPR;
-        if (p.x < -20) p.x = canvas.width + 20;
-        if (p.x > canvas.width + 20) p.x = -20;
-        if (p.y < -20) p.y = canvas.height + 20;
-        if (p.y > canvas.height + 20) p.y = -20;
-        ctx.beginPath();
-        ctx.fillStyle = 'rgba(0,240,255,0.06)';
-        ctx.shadowBlur = 18;
-        ctx.shadowColor = 'rgba(0,240,255,0.9)';
-        ctx.arc(p.x, p.y, p.r * DPR, 0, Math.PI*2);
-        ctx.fill();
-      });
-      ctx.restore();
-      requestAnimationFrame(loop);
-    }
-    loop();
-
-    /* ---------- (placeholder UI handlers) ---------- */
-    document.getElementById('generateBtn').addEventListener('click', async () => {
-      const sidBox = document.getElementById('sidBox');
-      const sessionPre = document.getElementById('sessionPre');
-      sidBox.textContent = 'Generating…';
-      await new Promise(r=>setTimeout(r,900));
-      const fakeSid = 'TERAN~' + Math.random().toString(36).slice(2,14);
-      sidBox.textContent = fakeSid;
-      sessionPre.textContent = JSON.stringify({ created: new Date().toISOString(), sid: fakeSid }, null, 2);
-    });
-  </script>
-
-    <!-- Animated Typing Effect -->
-    <div class="typing-container text-center mt-10">
-      <span id="typing-text" class="text-3xl font-bold text-neon"></span>
-    </div>
-
-    <!-- Contact Section -->
-    <section class="contact mt-12 text-center">
-      <h2 class="text-2xl font-semibold text-gray-200">Contact Me</h2>
-      <p class="mt-3">
-        📞 
-        <a href="https://wa.me/254717028877" target="_blank" 
-           class="text-blue-400 hover:text-blue-300 transition duration-300 underline">
-          +254 717 028 877
-        </a>
-      </p>
-      <p class="mt-2 text-sm text-gray-400">Available on WhatsApp 24/7</p>
-    </section>
-
-    <!-- Call-to-Action Section -->
-    <section class="mt-16 text-center">
-      <h3 class="text-lg text-gray-300">🚀 Ready to Get Started?</h3>
-      <div class="mt-4 flex justify-center gap-4 flex-wrap">
-        <a href="/qr" 
-           class="px-5 py-2 bg-gradient-to-r from-green-500 to-green-700 rounded-lg text-white font-semibold shadow-lg hover:scale-105 hover:shadow-green-500/50 transition-transform duration-300">
-          QR CODE
-        </a>
-        <a href="/pair" 
-           class="px-5 py-2 bg-gradient-to-r from-blue-500 to-blue-700 rounded-lg text-white font-semibold shadow-lg hover:scale-105 hover:shadow-blue-500/50 transition-transform duration-300">
-          PAIRING CODE
-        </a>
-        <a href="https://github.com/TeranXMD/YourRepo" target="_blank" 
-           class="px-5 py-2 bg-gradient-to-r from-pink-500 to-pink-700 rounded-lg text-white font-semibold shadow-lg hover:scale-105 hover:shadow-pink-500/50 transition-transform duration-300">
-          FORK PROJECT
-        </a>
-      </div>
-    </section>
+  <!-- Buttons -->
+  <div class="flex flex-col gap-3 w-full max-w-xs relative z-10 fade-up"
+       style="animation-delay: 1.4s;">
+    <a href="/qr" target="_blank" class="glow-button">QR Code</a>
+    <a href="/pair" target="_blank" class="glow-button">Pairing Code</a>
+    <a href="https://github.com/XdKing2/MALVIN-XD/fork" target="_blank" class="glow-button">Fork on GitHub</a>
+    <a href="https://whatsapp.com/channel/0029VbA6MSYJUM2TVOzCSb2A" target="_blank" class="glow-button">WhatsApp Channel</a>
+    <a href="https://wa.me/254717028877" target="_blank" class="glow-button">Report Error</a>
   </div>
 
   <!-- Footer -->
-  <footer class="footer text-center mt-16 py-6 border-t border-gray-700 text-gray-400">
-    TERAN-XMD &copy; <span id="year"></span> — All Rights Reserved
+  <footer class="mt-10 text-gray-500 text-xs relative z-10 fade-up"
+          style="animation-delay: 1.8s;">
+    &copy; <span id="year"></span> TERAN-XMD. All rights reserved.
   </footer>
 
-  <!-- Scripts -->
   <script>
-    // Typing animation
-    const text = "TERAN-XMD — Your WhatsApp Bot Connection Hub";
-    let i = 0;
-    function typeWriter() {
-      if (i < text.length) {
-        document.getElementById("typing-text").innerHTML += text.charAt(i);
-        i++;
-        setTimeout(typeWriter, 80);
-      }
-    }
-    typeWriter();
-
-    // Dynamic Year
     document.getElementById("year").textContent = new Date().getFullYear();
-  </script>
 
-  <style>
-    /* Neon text glow effect */
-    .text-neon {
-      color: #00ffcc;
-      text-shadow:
-        0 0 5px #00ffcc,
-        0 0 10px #00ffcc,
-        0 0 20px #00ffcc,
-        0 0 40px #00ffcc;
+    // Create floating particles with heat drift
+    const particlesContainer = document.getElementById("particles");
+    for (let i = 0; i < 30; i++) {
+      const particle = document.createElement("div");
+      const size = Math.random() * 6 + 2;
+      particle.classList.add("particle");
+      particle.style.width = `${size}px`;
+      particle.style.height = `${size}px`;
+      particle.style.left = `${Math.random() * 100}vw`;
+      particle.style.animationDuration = `${Math.random() * 10 + 10}s`;
+      particle.style.animationDelay = `${Math.random() * 10}s`;
+      particle.style.background = `rgba(34,211,238,${Math.random()*0.8 + 0.2})`;
+      particle.style.boxShadow = `0 0 ${Math.random()*6}px rgba(34,211,238,0.8)`;
+      particlesContainer.appendChild(particle);
+
+      // Heat shimmer drift
+      setInterval(() => {
+        let currentLeft = parseFloat(particle.style.left);
+        particle.style.left = `${currentLeft + (Math.random() - 0.5) * 0.2}vw`;
+      }, 200);
     }
-  </style>
-  <!-- Particle.js Background -->
-  <div id="particles-js" class="absolute top-0 left-0 w-full h-full -z-10"></div>
-
-  <!-- Scripts for Particles.js -->
-  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+  </script>
   <script>
-    particlesJS("particles-js", {
-      "particles": {
-        "number": { "value": 90, "density": { "enable": true, "value_area": 800 } },
-        "color": { "value": ["#00ffcc", "#ff00ff", "#00ccff"] },
-        "shape": { "type": "circle" },
-        "opacity": { "value": 0.7, "random": false },
-        "size": { "value": 4, "random": true },
-        "line_linked": {
-          "enable": true,
-          "distance": 150,
-          "color": "#ffffff",
-          "opacity": 0.4,
-          "width": 1
-        },
-        "move": {
-          "enable": true,
-          "speed": 3,
-          "direction": "none",
-          "random": false,
-          "straight": false,
-          "out_mode": "out"
-        }
-      },
-      "interactivity": {
-        "events": {
-          "onhover": { "enable": true, "mode": "grab" },
-          "onclick": { "enable": true, "mode": "push" }
-        },
-        "modes": {
-          "grab": { "distance": 200, "line_linked": { "opacity": 0.7 } },
-          "push": { "particles_nb": 4 }
-        }
-      },
-      "retina_detect": true
+    // Trigger entrance animations sequentially
+    document.addEventListener("DOMContentLoaded", () => {
+      const animatedItems = document.querySelectorAll(".fade-up");
+      animatedItems.forEach((item) => {
+        const delay = item.style.animationDelay || "0s";
+        item.style.opacity = "0";
+        setTimeout(() => {
+          item.style.opacity = "1";
+        }, parseFloat(delay) * 1000);
+      });
     });
   </script>
 
-  <!-- Smooth fade-in animation -->
-  <style>
-    body {
-      animation: fadeInBody 1.5s ease-in-out;
-    }
-    @keyframes fadeInBody {
-      0% { opacity: 0; transform: scale(0.98); }
-      100% { opacity: 1; transform: scale(1); }
-    }
-  </style>
 </body>
 </html>
