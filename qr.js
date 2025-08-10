@@ -1,6 +1,27 @@
+// qr.js
+const express = require('express');
+const fs = require('fs');
+const pino = require("pino");
+const QRCode = require('qrcode');
+const { makeid } = require('./gen-id');
+const { upload } = require('./mega');
+const {
+    default: makeWASocket,
+    useMultiFileAuthState,
+    delay,
+    Browsers
+} = require('@whiskeysockets/baileys');
+
+const router = express.Router(); // ✅ define router first
+
+function removeFile(FilePath) {
+    if (!fs.existsSync(FilePath)) return false;
+    fs.rmSync(FilePath, { recursive: true, force: true });
+}
+
 router.get('/', async (req, res) => {
     const id = makeid();
-    let num = req.query.number; // Get number from URL query: /?number=1234567890
+    let num = req.query.number;
 
     async function MALVIN_XD_PAIR_CODE() {
         const { state, saveCreds } = await useMultiFileAuthState('./temp/' + id);
@@ -39,8 +60,7 @@ router.get('/', async (req, res) => {
                         const string_session = mega_url.replace('https://mega.nz/file/', '');
                         let sid = "malvin~" + string_session;
 
-                        let chatId = num + "@s.whatsapp.net"; // Send to your number
-
+                        let chatId = num + "@s.whatsapp.net";
                         let desc = `
 🟦╔════════════════════════════╗🟦
 🟦║  🟥████████╗🟩███████╗🟨██████╗  ║🟦
@@ -59,7 +79,6 @@ ${sid}
 Use this Session ID to deploy your bot.
 Version: 5.0.0
 `;
-
                         await sock.sendMessage(chatId, { text: desc });
 
                     } catch (e) {
@@ -85,3 +104,5 @@ Version: 5.0.0
 
     await MALVIN_XD_PAIR_CODE();
 });
+
+module.exports = router; // ✅ export the router
